@@ -1,0 +1,266 @@
+httpd.conf -> apache24 -> conf:
+
+	
+	
+	ServerName 127.0.0.1:80
+	Listen 80
+	LoadFile "C:\Users\ACER\AppData\Local\Programs\Python\Python312\python312.dll"
+	LoadModule wsgi_module "C:\Users\ACER\Downloads\Genie-EMS-Backend\Genie-EMS-Backend\env\Lib\site-packages\mod_wsgi\server\mod_wsgi.cp312-win_amd64.pyd"
+	WSGIPYthonHome "C:\Users\ACER\Downloads\Genie-EMS-Backend\Genie-EMS-Backend\env"
+	
+	Include conf/app.conf
+
+app.wsgi -> project inside:
+
+	import sys
+	import os
+	sys.path.append('C:\\Users\\ACER\\Downloads\\Genie-EMS-Backend\\Genie-EMS-Backend\\genie_flask')
+	from app import app as application
+	application.secret_key = 'Genie'
+
+
+app.conf apache24-> conf ->:
+
+	WSGIApplicationGroup %{GLOBAL}
+	<VirtualHost *:80>
+	    ServerName 127.0.0.1
+	    WSGIScriptAlias / C:/Users/ACER/Downloads/Genie-EMS-Backend/Genie-EMS-Backend/genie_flask/app.wsgi
+	    <Directory C:/Users/ACER/Downloads/Genie-EMS-Backend/Genie-EMS-Backend/genie_flask>
+		Options FollowSymLinks
+	    AllowOverride None
+	    Require all granted
+	    </Directory>
+	</VirtualHost>
+
+
+nginx 
+
+sudo nano /etc/systemd/system/gunicorn.service
+
+[Unit]
+Description=gunicorn daemon
+Requires=gunicorn.socket
+After=network.target
+
+[Service]
+User=pgaehub
+Group=www-data
+WorkingDirectory=/home/pgaehub/E-Invoicing_Portal-Backend
+ExecStart=/home/pgaehub/E-Invoicing_Portal-Backend/env/bin/gunicorn --access-lo>
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+sudo nano /etc/systemd/system/gunicorn.socket
+
+[Unit]
+Description=gunicorn socket
+
+[Socket]
+ListenStream=/run/gunicorn.sock
+
+[Install]
+WantedBy=sockets.target
+
+
+
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.pganalytics.info;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static/ {
+        root /home/pgaehub/E-Invoicing_Portal-Backend/static;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn.sock;
+}
+}
+
+
+einvoice front end 
+
+server {
+   listen 80;
+   listen [::]:80;
+   server_name pgbooks.pganalytics.info;
+   root /var/www/PGBooks-Frontend/dist/pgbooks;
+   server_tokens off;
+   index index.html index.htm;
+   location / {
+        # First attempt to server request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.html =404;
+    }
+   location /api/{
+        include proxy_params;
+        proxy_pass              https://localhost:4200;
+        proxy_set_header        Host            $host;
+}
+}
+
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pgbookapi.pganalytics.info;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static/ {
+        root /home/pgaehub/PGBooks-Backend/static;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/pgbooks_gunicorn.sock;
+}
+}
+
+
+
+multiple server nginx
+
+
+[Unit]
+Description=gunicorn socket
+
+[Socket]
+ListenStream=/run/pgbooks_gunicorn.sock
+
+[Install]
+WantedBy=sockets.target
+
+
+
+[Unit]
+Description=gunicorn daemon
+Requires=pgbooks_gunicorn.socket
+After=network.target
+
+[Service]
+User=pgaehub
+Group=www-data
+WorkingDirectory=/home/pgaehub/PGBooks-Backend
+ExecStart=/home/pgaehub/PGBooks-Backend/env/bin/gunicorn --access-logfile - --workers 3 --bind unix:/run/pgbooks_gunicorn.sock pg_books.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+
+
+front end
+
+
+server {
+   listen 80;
+   listen [::]:80;
+   server_name pgbooks.pganalytics.info;
+   root /var/www/PGBooks-Frontend/dist/pgbooks;
+   server_tokens off;
+   index index.html index.htm;
+   location / {
+        # First attempt to server request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.html =404;
+    }
+   location /api/{
+        include proxy_params;
+        proxy_pass              https://localhost:4200;
+        proxy_set_header        Host            $host;
+}
+}
+
+
+php nginx
+
+
+  GNU nano 6.2                                                                                 Sasstech-US-Website                                                                                           
+server {
+   listen 80;
+   listen [::]:80;
+   server_name kenma.pganalytics.info;
+   root /var/www/Sasstech-US-Website-Backup;
+   server_tokens off;
+   index index.html index.htm index.php;
+   location / {
+        # First attempt to server request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.html =404;
+    }
+   location /api/{
+        include proxy_params;
+        proxy_pass              https://localhost:4200;
+        proxy_set_header        Host            $host;
+        }
+
+   location ~ \.php$ {
+       include snippets/fastcgi-php.conf;
+       fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
+   }    
+}
+
+
+single both domain nginx and ssl
+
+
+server {
+   server_name vendors.loveamika.com, 74.249.31.146, www.vendors.loveamika.com;
+
+    root /var/www/ERP-Logic-SAP-Frontend/sap/dist/sap;
+    server_tokens off;
+    index index.html index.htm;
+
+   location / {
+        # First attempt to server request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.html =404;
+    }
+
+    location /api/ {
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn.sock;
+    }
+
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/vendors_loveamika_com.crt; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/vendors.loveamika.key; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+
+
+server {
+    if ($host = www.vendors.loveamika.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    listen [::]:80;
+    server_name vendors.loveamika.com, 74.249.31.146, www.vendors.loveamika.com;
+    return 404; # managed by Certbot
+
+
+}
+
+
+
+
+
+
+
+
+
+
